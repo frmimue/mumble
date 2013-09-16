@@ -624,9 +624,19 @@ void MainWindow::msgTextMessage(const MumbleProto::TextMessage &msg) {
 	} else if (msg.channel_id_size() > 0) {
 		target += tr("(Channel) ");
 	}
+	int tabToLog = 0;
+	if(!(msg.tree_id_size() > 0 || msg.channel_id_size() > 0)){
+		for(; tabToLog < g.mw->qtwLog->count(); tabToLog++){
+			if(g.mw->qtwLog->tabText(tabToLog) == plainName)
+				break;
+		}
+		if(tabToLog == g.mw->qtwLog->count()){
+			g.mw->qtwLog->addTab(new LogTextBrowser(), plainName);		
+		}
+	}
 
 	g.l->log(Log::TextMessage, tr("%2%1: %3").arg(name).arg(target).arg(u8(msg.message())),
-	         tr("Message from %1").arg(plainName));
+	         tr("Message from %1").arg(plainName), false, tabToLog);
 }
 
 void MainWindow::msgACL(const MumbleProto::ACL &msg) {
