@@ -111,7 +111,11 @@
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
+  <widget class="QTabWidget" name="qtwLog">
    <widget class="LogTextBrowser" name="qteLog">
+    <attribute name="title">
+     <string>Channel</string>
+    </attribute>
     <property name="contextMenuPolicy">
      <enum>Qt::CustomContextMenu</enum>
     </property>
@@ -122,6 +126,7 @@
      <bool>false</bool>
     </property>
    </widget>
+  </widget>
   </widget>
   <widget class="QDockWidget" name="qdwChat">
    <property name="sizePolicy">
