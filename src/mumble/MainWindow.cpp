@@ -1538,9 +1538,9 @@ void MainWindow::sendChatbarMessage(QString qsText) {
 
 	if(g.mw->qtwLog->currentIndex() > 0){
 		foreach(ClientUser *p, ClientUser::c_qmUsers) {
-			if(p->qsName == g.mw->qtwLog->tabText(g.mw->qtwLog->currentIndex())){
+			if(p->qsHash == g.mw->qtwLog->tabText(g.mw->qtwLog->currentIndex())){
 				g.sh->sendUserTextMessage(p->uiSession, qsText);
-				g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), qsText), tr("Message to %1").arg(p->qsName), true);
+				g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), qsText), tr("Message to %1").arg(p->qsName), true, g.mw->qtwLog->currentIndex());
 			}
 		}
 	}

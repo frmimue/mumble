@@ -627,11 +627,11 @@ void MainWindow::msgTextMessage(const MumbleProto::TextMessage &msg) {
 	int tabToLog = 0;
 	if(!(msg.tree_id_size() > 0 || msg.channel_id_size() > 0)){
 		for(; tabToLog < g.mw->qtwLog->count(); tabToLog++){
-			if(g.mw->qtwLog->tabText(tabToLog) == plainName)
+			if(g.mw->qtwLog->tabText(tabToLog) == pSrc->qsHash)
 				break;
 		}
 		if(tabToLog == g.mw->qtwLog->count()){
-			g.mw->qtwLog->addTab(new LogTextBrowser(), plainName);		
+			g.mw->qtwLog->addTab(new LogTextBrowser(), pSrc->qsHash);		
 		}
 	}
 
