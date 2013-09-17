@@ -274,6 +274,7 @@ void MainWindow::setupGui()  {
 	qteChat->setFrameShape(QFrame::NoFrame);
 	qteLog->setFrameStyle(QFrame::NoFrame);
 #endif
+	qtwLog->getTabBar()->setVisible((g.s.bLogTabs) ? true : false);
 
 	LogDocument *ld = new LogDocument(qteLog);
 	qteLog->setDocument(ld);
@@ -864,8 +865,10 @@ void MainWindow::setupView(bool toggle_minimize) {
 		qdwLog->setVisible(showit);
 		qdwChat->setVisible(showit);
 		qtIconToolbar->setVisible(showit);
+		
 	}
 	menuBar()->setVisible(showit);
+	qtwLog->getTabBar()->setVisible((g.s.bLogTabs ? true : false));
 
 	if (toggle_minimize) {
 		if (! showit) {

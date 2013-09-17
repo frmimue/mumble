@@ -324,6 +324,7 @@ Settings::Settings() {
 	bChatBarUseSelection = false;
 	bFilterHidesEmptyChannels = false;
 	bFilterActive = false;
+	bLogTabs = true;
 
 	wlWindowLayout = LayoutClassic;
 	bShowContextMenuInMenuBar = false;
@@ -677,6 +678,7 @@ void Settings::load(QSettings* settings_ptr) {
 	SAVELOAD(qbaConnectDialogHeader, "ui/connect/header");
 	SAVELOAD(bHighContrast, "ui/HighContrast");
 	SAVELOAD(iMaxLogBlocks, "ui/MaxLogBlocks");
+	SAVELOAD(bLogTabs, "ui/LogTabs");
 
 	// PTT Button window
 	SAVELOAD(bShowPTTButtonWindow, "ui/showpttbuttonwindow");
@@ -963,6 +965,7 @@ void Settings::save() {
 	SAVELOAD(qbaConnectDialogHeader, "ui/connect/header");
 	SAVELOAD(bHighContrast, "ui/HighContrast");
 	SAVELOAD(iMaxLogBlocks, "ui/MaxLogBlocks");
+	SAVELOAD(bLogTabs, "ui/LogTabs");
 
 	// PTT Button window
 	SAVELOAD(bShowPTTButtonWindow, "ui/showpttbuttonwindow");
