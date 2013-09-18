@@ -37,7 +37,6 @@
 #include "Global.h"
 #include "MainWindow.h"
 
-
 LogTextBrowser::LogTextBrowser(QWidget *p) : QTextBrowser(p) {}
 
 void LogTextBrowser::resizeEvent(QResizeEvent *e) {

@@ -135,6 +135,7 @@ void LookConfig::load(const Settings &r) {
 	loadCheckBox(qcbHighContrast, r.bHighContrast);
 	loadCheckBox(qcbChatBarUseSelection, r.bChatBarUseSelection);
 	loadCheckBox(qcbFilterHidesEmptyChannels, r.bFilterHidesEmptyChannels);
+	loadCheckBox(qcbLogTabs, r.bLogTabs);
 	
 }
 
@@ -177,6 +178,7 @@ void LookConfig::save() const {
 	s.bHighContrast = qcbHighContrast->isChecked();
 	s.bChatBarUseSelection = qcbChatBarUseSelection->isChecked();
 	s.bFilterHidesEmptyChannels = qcbFilterHidesEmptyChannels->isChecked();
+	s.bLogTabs = qcbLogTabs->isChecked();
 }
 
 void LookConfig::accept() const {
@@ -187,7 +189,7 @@ void LookConfig::accept() const {
 	if (s.qsSkin.isEmpty()) {
 		if (qApp->styleSheet() != MainWindow::defaultStyleSheet) {
 			qApp->setStyleSheet(MainWindow::defaultStyleSheet);
-			g.mw->qteLog->document()->setDefaultStyleSheet(qApp->styleSheet());
+			g.mw->qtwLogTabs->handleDocumentSetDefaultStyleSheet(qApp->styleSheet());
 		}
 	} else {
 		QFile file(s.qsSkin);
@@ -195,7 +197,7 @@ void LookConfig::accept() const {
 		QString sheet = QLatin1String(file.readAll());
 		if (! sheet.isEmpty() && (sheet != qApp->styleSheet())) {
 			qApp->setStyleSheet(sheet);
-			g.mw->qteLog->document()->setDefaultStyleSheet(sheet);
+			g.mw->qtwLogTabs->handleDocumentSetDefaultStyleSheet(sheet);
 		}
 	}
 	g.mw->setShowDockTitleBars(g.s.wlWindowLayout == Settings::LayoutCustom);
@@ -236,4 +238,8 @@ void LookConfig::on_qpbSkinFile_clicked(bool) {
 	if (! file.isEmpty()) {
 		qleCSS->setText(file);
 	}
+}
+
+void LookConfig::on_qcbLogTabs_stateChanged(int v) {
+	qcbChatBarUseSelection->setEnabled(!v);
 }
