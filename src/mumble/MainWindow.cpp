@@ -577,7 +577,7 @@ void MainWindow::on_qtvUsers_customContextMenuRequested(const QPoint &mpos) {
 }
 
 void MainWindow::onLogTabCustomContextMenuRequested(const QPoint &mpos) {
-	LogTextBrowser* tabifiedLog = (LogTextBrowser*)qtwLogTabs->widget(qtwLogTabs->currentIndex());
+	LogTextBrowser* tabifiedLog = qobject_cast<LogTextBrowser*>(qtwLogTabs->widget(qtwLogTabs->currentIndex()));
 	QString link = tabifiedLog->anchorAt(mpos);
 	if (! link.isEmpty()) {
 		QUrl l(link);
@@ -861,9 +861,11 @@ void MainWindow::setupView(bool toggle_minimize) {
 		qtIconToolbar->setVisible(showit);
 	}
 	menuBar()->setVisible(showit);
-	qtwLogTabs->activateTabs(g.s.bLogTabs);
-	if(!g.s.bLogTabs)
+	
+	qtwLogTabs->activateTabs(g.s.enableTabbedLog);
+	if (!g.s.enableTabbedLog) {
 		qtwLogTabs->setCurrentIndex(qtwLogTabs->getChannelTab());
+	}
 
 	if (toggle_minimize) {
 		if (! showit) {
@@ -1445,7 +1447,11 @@ void MainWindow::openTextMessageDialog(ClientUser *p) {
 
 		if (! msg.isEmpty()) {
 			g.sh->sendUserTextMessage(p->uiSession, msg);
-			g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), texm->message()), tr("Message to %1").arg(p->qsName), true, qtwLogTabs->findTab(p));
+			g.l->log(Log::TextMessage,
+			         tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), texm->message()),
+			         tr("Message to %1").arg(p->qsName),
+			         true,
+			         qtwLogTabs->getOrCreateUserTab(p));
 		}
 	}
 	delete texm;
@@ -1528,9 +1534,6 @@ void MainWindow::on_qaQuit_triggered() {
 void MainWindow::sendChatbarMessage(QString qsText) {
 	if (g.uiSession == 0) return; // Check if text & connection is available
 
-	ClientUser *p = pmModel->getUser(qtvUsers->currentIndex());
-	Channel *c = pmModel->getChannel(qtvUsers->currentIndex());
-
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 	qsText = qsText.toHtmlEscaped();
 #else
@@ -1538,32 +1541,51 @@ void MainWindow::sendChatbarMessage(QString qsText) {
 #endif
 	qsText = TextMessage::autoFormat(qsText);
 
-	if(g.s.bLogTabs){
+	if(g.s.enableTabbedLog){
 		if(qtwLogTabs->getChannelTab() == qtwLogTabs->currentIndex()){
-			c = ClientUser::get(g.uiSession)->cChannel;
-			g.sh->sendChannelTextMessage(c->iId, qsText, false);
-			g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatChannel(c), qsText), tr("Message to channel %1").arg(c->qsName), true);
+			// Channel message
+			Channel *channel = ClientUser::get(g.uiSession)->cChannel;
+			g.sh->sendChannelTextMessage(channel->iId, qsText, false);
+			g.l->log(Log::TextMessage,
+			         tr("To %1: %2").arg(Log::formatChannel(channel), qsText),
+			         tr("Message to channel %1").arg(channel->qsName),
+			         true);
 		}
-		else{
-			p = pmModel->getUser(qtwLogTabs->getHash(qtwLogTabs->currentIndex()));
-            if(NULL == p)
+		else {
+			// User message
+			ClientUser *user = pmModel->getUser(qtwLogTabs->getHash(qtwLogTabs->currentIndex()));
+			if (user == NULL)
 				return;
-			g.sh->sendUserTextMessage(p->uiSession, qsText);
-            g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), qsText), tr("Message to %1").arg(p->qsName), true, qtwLogTabs->findTab(p));
+			
+			g.sh->sendUserTextMessage(user->uiSession, qsText);
+			g.l->log(Log::TextMessage,
+			         tr("To %1: %2").arg(Log::formatClientUser(user, Log::Target), qsText),
+			         tr("Message to %1").arg(user->qsName),
+			         true,
+			         qtwLogTabs->getOrCreateUserTab(user));
 		}
 	}
-	else{
-	if (!g.s.bChatBarUseSelection || p == NULL || p->uiSession == g.uiSession) {
+	else {
+		ClientUser *user = pmModel->getUser(qtvUsers->currentIndex());
+		Channel *channel = pmModel->getChannel(qtvUsers->currentIndex());
+		
+		if (!g.s.bChatBarUseSelection || user == NULL || user->uiSession == g.uiSession) {
 		// Channel message
-		if (!g.s.bChatBarUseSelection || c == NULL) // If no channel selected fallback to current one
-			c = ClientUser::get(g.uiSession)->cChannel;
+			if (!g.s.bChatBarUseSelection || channel == NULL) // If no channel selected fallback to current one
+				channel = ClientUser::get(g.uiSession)->cChannel;
 	
-		g.sh->sendChannelTextMessage(c->iId, qsText, false);
-		g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatChannel(c), qsText), tr("Message to channel %1").arg(c->qsName), true);
+			g.sh->sendChannelTextMessage(channel->iId, qsText, false);
+			g.l->log(Log::TextMessage,
+			         tr("To %1: %2").arg(Log::formatChannel(channel), qsText),
+			         tr("Message to channel %1").arg(channel->qsName),
+			         true);
 	} else {
 		// User message
-		g.sh->sendUserTextMessage(p->uiSession, qsText);
-		g.l->log(Log::TextMessage, tr("To %1: %2").arg(Log::formatClientUser(p, Log::Target), qsText), tr("Message to %1").arg(p->qsName), true);
+			g.sh->sendUserTextMessage(user->uiSession, qsText);
+			g.l->log(Log::TextMessage,
+			         tr("To %1: %2").arg(Log::formatClientUser(user, Log::Target), qsText),
+			         tr("Message to %1").arg(user->qsName),
+			         true);
 	}
 	}
 	qteChat->clear();
@@ -1868,7 +1890,7 @@ void MainWindow::updateMenuPermissions() {
 
 	ChanACL::Permissions p = c ? static_cast<ChanACL::Permissions>(c->uiPermissions) : ChanACL::None;
 
-	if (c && ! p) {
+	if (c && !p) {
 		g.sh->requestChannelPermissions(c->iId);
 		if (c->iId == 0)
 			p = g.pPermissions;
@@ -1932,20 +1954,19 @@ void MainWindow::updateMenuPermissions() {
 	qaChannelCopyURL->setEnabled(c);
 	qaChannelSendMessage->setEnabled(p & (ChanACL::Write | ChanACL::TextMessage));
 	qaChannelFilter->setEnabled(true);
-    if(g.s.bLogTabs){
-        if(qtwLogTabs->getChannelTab() == qtwLogTabs->currentIndex()){
-            qtwLogTabs->onCurrentChanged(qtwLogTabs->currentIndex());
+	
+	if(g.s.enableTabbedLog) {
+		if (qtwLogTabs->getChannelTab() == qtwLogTabs->currentIndex()) {
             qteChat->setEnabled(homep & (ChanACL::Write | ChanACL::TextMessage));
+		} else {
+			const bool userPresent = pmModel->getUser(qtwLogTabs->getHash(qtwLogTabs->currentIndex())) != NULL;
+			qteChat->setEnabled(userPresent);
         }
-        else if(NULL == pmModel->getUser(qtwLogTabs->getHash(qtwLogTabs->currentIndex()))){
-            qteChat->setEnabled(false);
-            qtwLogTabs->markTabAsRestricted(qtwLogTabs->currentIndex());
+	} else if (g.s.bChatBarUseSelection) {
+		qteChat->setEnabled(p & (ChanACL::Write | ChanACL::TextMessage));
+	} else {
+		qteChat->setEnabled(homep & (ChanACL::Write | ChanACL::TextMessage));
         }
-        else
-            qteChat->setEnabled(true);
-    }
-    else
-	qteChat->setEnabled(p & (ChanACL::Write | ChanACL::TextMessage));
 }
 
 void MainWindow::userStateChanged() {
@@ -2756,14 +2777,15 @@ void MainWindow::updateChatBar() {
 	if (g.uiSession == 0) {
 		qteChat->setDefaultText(tr("<center>Not connected</center>"), true);
         qtwLogTabs->setTabText(qtwLogTabs->getChannelTab(), tr("Not connected"));
-	} else if(g.s.bLogTabs){
+	} else if(g.s.enableTabbedLog){
 		c = ClientUser::get(g.uiSession)->cChannel;
         if(qtwLogTabs->getChannelTab() != qtwLogTabs->currentIndex()){
-			qteChat->setDefaultText(tr("<center>Type message to user '%1' here</center>").arg(qtwLogTabs->tabText(qtwLogTabs->currentIndex())));
+			qteChat->setDefaultText(tr("<center>Type message to user '%1' here</center>")
+			                        .arg(qtwLogTabs->tabText(qtwLogTabs->currentIndex())));
 		}
 		else{
 			qteChat->setDefaultText(tr("<center>Type message to channel '%1' here</center>").arg(c->qsName));
-		}	
+		}
 	} else if (!g.s.bChatBarUseSelection || p == NULL || p->uiSession == g.uiSession) {
 		// Channel tree target
 		if (!g.s.bChatBarUseSelection || c == NULL) // If no channel selected fallback to current one
@@ -2774,10 +2796,12 @@ void MainWindow::updateChatBar() {
 		// User target
 		qteChat->setDefaultText(tr("<center>Type message to user '%1' here</center>").arg(Qt::escape(p->qsName)));
 	}
-	if(c != NULL)
+	
+	if(c != NULL) {
 		qtwLogTabs->setTabText(qtwLogTabs->getChannelTab(), tr("%1").arg(c->qsName));
-	else
+	} else {
 		qtwLogTabs->setTabText(qtwLogTabs->getChannelTab(), QString::fromUtf8("Not connected"));
+	}
 
 	updateMenuPermissions();
 }
@@ -2944,5 +2968,5 @@ void MainWindow::destroyUserInformation() {
 }
 
 void MainWindow::on_qtwLogTabs_currentChanged(int){
-	this->updateChatBar();
+	updateChatBar();
 }

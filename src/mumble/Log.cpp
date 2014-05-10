@@ -430,7 +430,7 @@ QString Log::validHtml(const QString &html, bool allowReplacement, QTextCursor *
 	}
 }
 
-void Log::log(MsgType mt, const QString &console, const QString &terse, bool ownMessage, int tabToLog) {
+void Log::log(MsgType mt, const QString &console, const QString &terse, bool ownMessage, int targetLogTabIndex) {
 	QDateTime dt = QDateTime::currentDateTime();
 
 	int ignore = qmIgnore.value(mt);
@@ -446,14 +446,16 @@ void Log::log(MsgType mt, const QString &console, const QString &terse, bool own
 
 	// Message output on console
 	if ((flags & Settings::LogConsole)) {
-        if(-1 == tabToLog || g.mw->qtwLogTabs->count() < tabToLog)
-			tabToLog = g.mw->qtwLogTabs->getChannelTab();
-        LogTab *tlog = dynamic_cast<LogTab*>(g.mw->qtwLogTabs->widget(tabToLog));
-		g.mw->qtwLogTabs->markTabAsUpdated(tabToLog);
-		QTextCursor tc = tlog->textCursor();
+		if(targetLogTabIndex == -1 || g.mw->qtwLogTabs->count() < targetLogTabIndex) {
+			targetLogTabIndex = g.mw->qtwLogTabs->getChannelTab();
+		}
+		
+		LogTab *logTab = qobject_cast<LogTab*>(g.mw->qtwLogTabs->widget(targetLogTabIndex));
+		g.mw->qtwLogTabs->markTabAsUpdated(targetLogTabIndex);
+		QTextCursor tc = logTab->textCursor();
 
-		const int oldscrollvalue = tlog->getLogScroll();
-		const bool scroll = (oldscrollvalue == tlog->getLogScrollMaximum());
+		const int oldscrollvalue = logTab->getLogScroll();
+		const bool scroll = (oldscrollvalue == logTab->getLogScrollMaximum());
 
 		tc.movePosition(QTextCursor::End);
 
@@ -470,18 +472,18 @@ void Log::log(MsgType mt, const QString &console, const QString &terse, bool own
 			qttf.setPadding(2);
 			qttf.setBorderStyle(QTextFrameFormat::BorderStyle_Solid);
 			tc.insertFrame(qttf);
-		} else if (! tlog->document()->isEmpty()) {
+		} else if (! logTab->document()->isEmpty()) {
 			tc.insertBlock();
 		}
 		tc.insertHtml(Log::msgColor(QString::fromLatin1("[%1] ").arg(Qt::escape(dt.time().toString(Qt::DefaultLocaleShortDate))), Log::Time));
 		validHtml(console, true, &tc);
 		tc.movePosition(QTextCursor::End);
-		tlog->setTextCursor(tc);
+		logTab->setTextCursor(tc);
 
 		if (scroll || ownMessage)
-			tlog->scrollLogToBottom();
+			logTab->scrollLogToBottom();
 		else
-			tlog->setLogScroll(oldscrollvalue);
+			logTab->setLogScroll(oldscrollvalue);
 	}
 
 	if (!g.s.bTTSMessageReadBack && ownMessage)

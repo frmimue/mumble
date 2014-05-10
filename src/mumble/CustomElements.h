@@ -44,6 +44,7 @@
 # include <QtGui/QTextEdit>
 #endif
 
+
 class LogTextBrowser : public QTextBrowser {
 	private:
 		Q_OBJECT

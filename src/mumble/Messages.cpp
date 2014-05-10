@@ -279,7 +279,7 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
 		if (msg.has_name()) {
 			pDst = pmModel->addUser(msg.session(), u8(msg.name()));
 			bNewUser = true;
-			g.mw->updateChatBar();
+			updateChatBar();
 		} else {
 			return;
 		}
@@ -309,7 +309,6 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
 			pDst->setSelfDeaf(msg.self_deaf());
 
 		if (pSelf && pDst != pSelf && (pDst->cChannel == pSelf->cChannel)) {
-			QString name = pDst->qsName;
 			if (pDst->bSelfMute && pDst->bSelfDeaf)
 				g.l->log(Log::OtherSelfMute, tr("%1 is now muted and deafened.").arg(Log::formatClientUser(pDst, Log::Target)));
 			else if (pDst->bSelfMute)
@@ -480,6 +479,7 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
 			}
 		}
 	}
+	
 	if (msg.has_name()) {
 		QString oldName = pDst->qsName;
 		QString newName = u8(msg.name());
@@ -487,7 +487,7 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
 		if (! oldName.isNull() && oldName != newName) {
 			g.l->log(Log::Information, tr("%1 renamed to %2").arg(Log::formatClientUser(pDst, Log::Target, oldName),
 				Log::formatClientUser(pDst, Log::Target)));
-			g.mw->qtwLogTabs->updateTab(pDst);
+			qtwLogTabs->updateTab(pDst);
 		}
 	}
 	if (msg.has_texture_hash()) {
@@ -535,9 +535,10 @@ void MainWindow::msgUserRemove(const MumbleProto::UserRemove &msg) {
 		g.l->log(Log::UserLeave, tr("%1 disconnected.").arg(Log::formatClientUser(pDst, Log::Source)));
 	}
     if (pDst != pSelf){
-        int targetTab = g.mw->qtwLogTabs->searchTab(pDst);
-        if(-1 != targetTab)
-            g.mw->qtwLogTabs->markTabAsRestricted(targetTab);
+		const int targetTab = qtwLogTabs->getUserTab(pDst);
+		if(targetTab != -1) {
+			qtwLogTabs->markTabAsRestricted(targetTab);
+		}
 		pmModel->removeUser(pDst);
 	}
 }
@@ -649,15 +650,15 @@ void MainWindow::msgTextMessage(const MumbleProto::TextMessage &msg) {
 	const QString &plainName = pSrc ? pSrc->qsName : tr("Server", "message from");
 	const QString &name = pSrc ? Log::formatClientUser(pSrc, Log::Source) : tr("Server", "message from");
 
+	int targetLogTab = -1;
 	if (msg.tree_id_size() > 0) {
 		target += tr("(Tree) ");
 	} else if (msg.channel_id_size() > 0) {
 		target += tr("(Channel) ");
+	} else if (g.s.enableTabbedLog) {
+		// Normal message, redirect to user tab
+		targetLogTab = qtwLogTabs->getOrCreateUserTab(pSrc);
 	}
-
-	int targetLogTab = -1;
-    if(g.s.bLogTabs && 0 == msg.channel_id_size() && 0 == msg.tree_id_size())
-        targetLogTab = qtwLogTabs->findTab(pSrc);
 
 	g.l->log(Log::TextMessage, tr("%2%1: %3").arg(name).arg(target).arg(u8(msg.message())),
 	         tr("Message from %1").arg(plainName), false, targetLogTab);

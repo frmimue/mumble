@@ -230,16 +230,17 @@ void UserView::keyPressEvent(QKeyEvent *ev) {
 void UserView::nodeActivated(const QModelIndex &idx) {
 	UserModel *um = static_cast<UserModel *>(model());
 	ClientUser *p = um->getUser(idx);
-	if (p) {
-		if(g.s.bLogTabs)
+	if (p != NULL) {
+		if (g.s.enableTabbedLog) {
 			g.mw->qtwLogTabs->openTab(p);
-		else
+		} else {
 			g.mw->openTextMessageDialog(p);
+		}
 		return;
 	}
 
 	Channel *c = um->getChannel(idx);
-	if (c) {
+	if (c != NULL) {
 		// if a channel is activated join it
 		g.sh->joinChannel(c->iId);
 	}

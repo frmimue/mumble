@@ -43,56 +43,81 @@ class LogTab : public LogTextBrowser{
 	Q_OBJECT
 	///Access to LogTab members should only be possible for LogTabWidget
 	friend class LogTabWidget;
+	
 public slots:
 	void onHighlighted(const QUrl&);
+	
 private:
+	///Initialize a special, user-defined LogTab
+	LogTab(QString name, QString hash, QWidget *p = NULL);
+	virtual ~LogTab();
+	
+	void addToTabWidget(QTabWidget *tabWidget);
+	
 	QString m_name;
 	QString m_hash;
-	///Initialize a LogTab from a user
-	LogTab(ClientUser*, QWidget *p = NULL);
-	~LogTab();
-	void    addToTabWidget(QTabWidget*);
-	///Updates the names of the related user
-	void    updateUser(ClientUser*);
 };
 
-///Wrapping QTabWidget, to access protected members
+/// QTabWidget to manage LogTab instances.
+/// Handles tab context menues, states and so on.
 class LogTabWidget : public QTabWidget {
 	Q_OBJECT
 public:
 	LogTabWidget(QWidget* parent = 0);
-	~LogTabWidget();
-	///Set the visibility of the tabbar
-	void    activateTabs(bool);
-	int     getChannelTab();
-	void    openTab(ClientUser*);
-	int     findTab(ClientUser*);
-	int     searchTab(ClientUser*);
-	QString getHash(int);
-	void    updateTab(ClientUser*);
-	///Adds a visible notification, indicating the related tab has been updated
-	void     markTabAsUpdated(int);
-	///Adds a visible notification, indicating the related tab has been restricted
-	void     markTabAsRestricted(int);
-	///Sets the maximum block count for all tabs
-	void    handleDocumentsetMaximumBlockCount(int);
-	///Sets the default stylesheet for all tabs
-	void    handleDocumentSetDefaultStyleSheet(QString);
+	virtual ~LogTabWidget();
+	
+	/// Set the visibility of the tabbar.
+	void activateTabs(bool show);
+	/// Returns the index of the fixed channel tab.
+	int getChannelTab() const;
+	
+	/// Sets the user tab as current tab
+	void openTab(ClientUser*);
+	
+	/// Returns the tab index for the given user's tab, -1 otherwise.
+	int getUserTab(ClientUser *user) const;
+	/// Returns the tab index for the given user's tab, creates one if it doesn't exist.
+	int getOrCreateUserTab(ClientUser *user);
+	
+	/// Return the hash identifier for the tab at the given index.
+	QString getHash(int index) const;
+	/// Updates existing user tab from user object
+	void updateTab(ClientUser* user);
+	
+	/// Adds a visible notification, indicating the related tab has been updated
+	void markTabAsUpdated(int index);
+	/// Adds a visible notification, indicating the related tab has been restricted
+	void markTabAsRestricted(int index);
+	/// Removes marks from given tab
+	void unmarkTab(int newIndex);
+	
+	/// Sets the maximum block count for all tabs
+	void handleDocumentsetMaximumBlockCount(int maxLogBlocks);
+	/// Sets the default stylesheet for all tabs
+	void handleDocumentSetDefaultStyleSheet(QString styleSheet);
+
 public slots:
-	void 	onCurrentChanged(int);
-	void    onTabMoved(int, int);
-	void    onTabCloseRequested(int);
-	void    onTabBarCustomContextMenuRequested(const QPoint&);
+	void onCurrentChanged(int newIndex);
+	void onTabMoved(int, int);
+	void onTabCloseRequested(int index);
+	void onTabBarCustomContextMenuRequested(const QPoint&);
+	
 signals:
-	void 	anchorClick(const QUrl&);
-	void    customContextMenuRequest(const QPoint&);
-	void    highlighted(const QUrl&);
+	/// Emitted if any tab emits anchorClick
+	void anchorClick(const QUrl& url);
+	/// Emitted if any tab emits customContextMenuRequest
+	void customContextMenuRequest(const QPoint& point);
+	/// Emitted if any tab emits highlighted
+	void highlighted(const QUrl& url);
+	
 private:
-	///Mapping a users hash to a tab index
-	QHash<QString, int>* m_hashMap;
-	int     m_maxBlockCount;
-	void    updateHashMap();
-	int     createTab(ClientUser*);
+	int createTabFromUser(ClientUser* user);
+	int createTab(QString name, QString hash);
+	void updateHashMap();
+	
+	/// Mapping a users hash to a tab index
+	QHash<QString, int> m_hashMap;
+	int m_maxBlockCount;
 };
 
 #endif

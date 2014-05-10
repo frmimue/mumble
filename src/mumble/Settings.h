@@ -263,7 +263,8 @@ struct Settings {
 	bool bFilterActive;
 	QByteArray qbaConnectDialogHeader, qbaConnectDialogGeometry;
 	bool bShowContextMenuInMenuBar;
-	bool bLogTabs;
+	
+	bool enableTabbedLog;
 
 	QString qsUsername;
 	QString qsLastServer;

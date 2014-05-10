@@ -36,172 +36,201 @@
 #include <QtCore/QtGlobal>
 #include <QSignalMapper>
 
-LogTab::LogTab(ClientUser* user,QWidget *p) : LogTextBrowser(p){
-	this->m_hash = user->qsHash;
-	this->m_name = user->qsName;
-	this->setFrameStyle(QFrame::NoFrame);
-	this->setOpenLinks(false);
-	this->setContextMenuPolicy(Qt::CustomContextMenu);
-	LogDocument* ld = new LogDocument(this);
-	ld->setDefaultStyleSheet(qApp->styleSheet());
-	this->setDocument(ld);
+LogTab::LogTab(QString name, QString hash, QWidget *p) : LogTextBrowser(p) {
+	m_hash = hash;
+	m_name = name;
+	
+	setFrameStyle(QFrame::NoFrame);
+	setOpenLinks(false);
+	setContextMenuPolicy(Qt::CustomContextMenu);
+	
+	LogDocument* document = new LogDocument(this);
+	
+	document->setDefaultStyleSheet(qApp->styleSheet());
+	
+	setDocument(document);
+	
 	connect(this, SIGNAL(highlighted(QUrl)), this, SLOT(onHighlighted(QUrl)));
-	this->setWhatsThis(QString::fromUtf8("This shows all recent activity. Connecting to servers, errors and information messages all show up here.&lt;br /&gt;To configure exactly which messages show up here, use the &lt;b&gt;Settings&lt;/b&gt; command from the menu."));
+	
+	setWhatsThis(tr("This shows all recent activity. Connecting to servers, errors and information messages all show up here.&lt;br /&gt;To configure exactly which messages show up here, use the &lt;b&gt;Settings&lt;/b&gt; command from the menu."));
 }
 
-LogTab::~LogTab(){
+
+LogTab::~LogTab() {
+	// Nothing
 }
 
-void LogTab::addToTabWidget(QTabWidget * tabWidget){
+void LogTab::addToTabWidget(QTabWidget *tabWidget) {
 	tabWidget->addTab(this, m_name);
 }
 
-void LogTab::updateUser(ClientUser* user){
-	this->m_name  = user->qsName;
-}
-
-void LogTab::onHighlighted(const QUrl& url){
+void LogTab::onHighlighted(const QUrl& url) {
 	if (QString::fromLatin1("clientid") == url.scheme() || QString::fromLatin1("channelid") == url.scheme())
 		return;
+	
 	if (! url.isValid())
 		QToolTip::hideText();
 	else
 		QToolTip::showText(QCursor::pos(), url.toString(), this, QRect());
 }
 
-LogTabWidget::LogTabWidget(QWidget* parent) : QTabWidget(parent){
-	this->setTabPosition(QTabWidget::South);
-	this->setMovable(true);
-	this->setUsesScrollButtons(true);
-	this->setElideMode(Qt::ElideRight);
-	this->setStyleSheet(QString::fromUtf8("QTabBar::tab{min-width: 1px}"));
+LogTabWidget::LogTabWidget(QWidget* parent) : QTabWidget(parent) {
+	setTabPosition(QTabWidget::South);
+	setMovable(true);
+	setUsesScrollButtons(true);
+	setElideMode(Qt::ElideRight);
 
-	this->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
+	tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
 
 	connect(this, SIGNAL(currentChanged(int)), this, SLOT(onCurrentChanged(int)));
-	connect(this->tabBar(), SIGNAL(tabMoved(int, int)), this, SLOT(onTabMoved(int, int)));
+	connect(tabBar(), SIGNAL(tabMoved(int, int)), this, SLOT(onTabMoved(int, int)));
 	connect(this, SIGNAL(tabCloseRequested(int)), this, SLOT(onTabCloseRequested(int)));
-	connect(this->tabBar(), SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(onTabBarCustomContextMenuRequested(QPoint)));
+	connect(tabBar(), SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(onTabBarCustomContextMenuRequested(QPoint)));
 
-	QString tmp = QString::fromUtf8("channel");
-	ClientUser* channel =  new ClientUser();
-	channel->qsHash = tmp;
-	channel->qsName = tmp;
-	this->m_hashMap = new QHash<QString, int>();
-	this->createTab(channel);
-	this->setTabText(0, QString::fromUtf8("Not connected"));
-	this->setTabToolTip(0, QString::fromUtf8("Not connected"));
+	const int channelTab = createTab(tr("channel"), QLatin1String("channel"));
+	setTabText(channelTab, tr("Not connected"));
+	setTabToolTip(channelTab, tr("Not connected"));
 }
 
-LogTabWidget::~LogTabWidget(){
+LogTabWidget::~LogTabWidget() {
+	// Nothing
 }
 
-void LogTabWidget::activateTabs(bool show){
-	this->tabBar()->setVisible(show);
+void LogTabWidget::activateTabs(bool show) {
+	tabBar()->setVisible(show);
 }
 
-int LogTabWidget::findTab(ClientUser *user){
-	QHash<QString, int>::const_iterator iter = m_hashMap->find(user->qsHash);
-	return iter != m_hashMap->constEnd() ? iter.value() : createTab(user);
+int LogTabWidget::getOrCreateUserTab(ClientUser *user){
+	const int tab = getUserTab(user);
+	if (tab == -1) {
+		return createTabFromUser(user);
+	}
+	
+	return tab;
 }
 
-int LogTabWidget::searchTab(ClientUser *user){
-	QHash<QString, int>::const_iterator iter = m_hashMap->find(user->qsHash);
-	return iter != m_hashMap->constEnd() ? iter.value() : -1;
+int LogTabWidget::getUserTab(ClientUser *user) const {
+	QHash<QString, int>::const_iterator iter = m_hashMap.find(user->qsHash);
+	return iter != m_hashMap.constEnd() ? iter.value() : -1;
 }
 
-int LogTabWidget::createTab(ClientUser *user){
-	m_hashMap->insert(user->qsHash, count());
-	LogTab* lt = new LogTab(user, this);
-	lt->addToTabWidget(this);
-	lt->document()->setMaximumBlockCount(m_maxBlockCount);
-	this->setTabToolTip(count()-1, lt->m_name);
-	connect(lt, SIGNAL(anchorClicked(const QUrl&)), this, SIGNAL(anchorClick(const QUrl&)));
-	connect(lt, SIGNAL(customContextMenuRequested(const QPoint&)), this, SIGNAL(customContextMenuRequest(const QPoint&)));
-	return count()-1;
+int LogTabWidget::createTabFromUser(ClientUser *user){
+	return createTab(user->qsName, user->qsHash);
 }
 
-void LogTabWidget::openTab(ClientUser* user){
-	this->setCurrentIndex(findTab(user));
+int LogTabWidget::createTab(QString name, QString hash) {
+	LogTab* tab = new LogTab(name, hash, this);
+	tab->addToTabWidget(this);
+	tab->document()->setMaximumBlockCount(m_maxBlockCount);
+	
+	const int tabIdx = indexOf(tab);
+	m_hashMap.insert(hash, tabIdx);
+	setTabToolTip(tabIdx, tab->m_name);
+	
+	connect(tab, SIGNAL(anchorClicked(const QUrl&)), this, SIGNAL(anchorClick(const QUrl&)));
+	connect(tab, SIGNAL(customContextMenuRequested(const QPoint&)), this, SIGNAL(customContextMenuRequest(const QPoint&)));
+	connect(tab, SIGNAL(highlighted(QUrl)), this, SIGNAL(highlighted(QUrl)));
+	
+	return tabIdx;
 }
 
-int LogTabWidget::getChannelTab(){
-	return this->m_hashMap->find(QString::fromUtf8("channel")).value();
+void LogTabWidget::openTab(ClientUser* user) {
+	setCurrentIndex(getOrCreateUserTab(user));
 }
 
-QString LogTabWidget::getHash(int index){
-	return dynamic_cast<LogTab*>(widget(index))->m_hash;
+int LogTabWidget::getChannelTab() const {
+	return m_hashMap.find(QLatin1String("channel")).value();
 }
 
-void LogTabWidget::updateHashMap(){
-	m_hashMap->clear();
+QString LogTabWidget::getHash(int index) const {
+	return qobject_cast<LogTab *>(widget(index))->m_hash;
+}
+
+void LogTabWidget::updateHashMap() {
+	m_hashMap.clear();
 	for(int i = 0; i < count(); i++){
-		m_hashMap->insert(dynamic_cast<LogTab*>(widget(i))->m_hash, i);
+		m_hashMap.insert(qobject_cast<LogTab*>(widget(i))->m_hash, i);
 	}
 }
 
-void LogTabWidget::markTabAsUpdated(int index){
-	if(this->currentIndex() != index)
-		this->tabBar()->setTabTextColor(index, Qt::blue);
+void LogTabWidget::markTabAsUpdated(int index) {
+	if(currentIndex() != index) {
+		const QColor& color = palette().color(QPalette::Disabled, QPalette::Link);
+		tabBar()->setTabTextColor(index, color);
+	}
 }
 
-void LogTabWidget::markTabAsRestricted(int index){
-	this->tabBar()->setTabTextColor(index, Qt::gray);
+void LogTabWidget::markTabAsRestricted(int index) {
+	const QColor& color = palette().color(QPalette::Disabled, QPalette::WindowText);
+	tabBar()->setTabTextColor(index, color);
 }
 
-void LogTabWidget::updateTab(ClientUser* user){
-	int index = searchTab(user);
-	if(-1 == index)
+void LogTabWidget::unmarkTab(int newIndex) {
+	const QColor& color = palette().color(QPalette::WindowText);
+	tabBar()->setTabTextColor(newIndex, color);	
+}
+
+void LogTabWidget::updateTab(ClientUser* user) {
+	const int index = getUserTab(user);
+	if(index == -1)
 		return;
-	LogTab* lt = dynamic_cast<LogTab*>(widget(index));
-	lt->updateUser(user);
-	setTabText(index, lt->m_name);
-	this->setTabToolTip(index, lt->m_name);
+	
+	LogTab* logTab = dynamic_cast<LogTab*>(widget(index));
+	logTab->m_name = user->qsName;
+	
+	setTabText(index, logTab->m_name);
+	setTabToolTip(index, logTab->m_name);
 }
 
-void LogTabWidget::handleDocumentsetMaximumBlockCount(int maxLogBlocks){
+void LogTabWidget::handleDocumentsetMaximumBlockCount(int maxLogBlocks) {
 	for(int i = 0; i < count(); i++){
 		dynamic_cast<LogTab*>(widget(i))->document()->setMaximumBlockCount(maxLogBlocks);
 	}
-	this->m_maxBlockCount = maxLogBlocks;
+	m_maxBlockCount = maxLogBlocks;
 }
 
-void LogTabWidget::handleDocumentSetDefaultStyleSheet(QString styleSheet){
+void LogTabWidget::handleDocumentSetDefaultStyleSheet(QString styleSheet) {
 	for(int i = 0; i < count(); i++){
 		dynamic_cast<LogTab*>(widget(i))->document()->setDefaultStyleSheet(styleSheet);
 	}
 }
 
-void LogTabWidget::onCurrentChanged(int newIndex){
-	this->tabBar()->setTabTextColor(newIndex, Qt::black);
+void LogTabWidget::onCurrentChanged(int newIndex) {
+	unmarkTab(newIndex);
 }
 
-void LogTabWidget::onTabMoved(int, int){
-	this->updateHashMap();
-}
-
-void LogTabWidget::onTabCloseRequested(int index){
-	QString hashKey = dynamic_cast<LogTab*>(widget(index))->m_hash;
-	m_hashMap->remove(hashKey);
-	widget(index)->deleteLater();
-	removeTab(index);
+void LogTabWidget::onTabMoved(int, int) {
 	updateHashMap();
 }
 
-void LogTabWidget::onTabBarCustomContextMenuRequested(const QPoint& point){
-	QSignalMapper *mapper = new QSignalMapper();
-	for(int i = 0; i < count(); i++){
-		if(i == getChannelTab())
-			continue;
-		if(this->tabBar()->tabRect(i).contains(point)){
-			QMenu* menu = new QMenu();
-			QAction* action = menu->addAction(QString::fromUtf8("Close"));
-			mapper->setMapping(action, i);
-			connect(action, SIGNAL(triggered()), mapper, SLOT(map()));
-			connect(mapper, SIGNAL(mapped(int)), this, SLOT(onTabCloseRequested(int)));
-			connect(mapper, SIGNAL(mapped(int)), this, SIGNAL(currentChanged(int)));
-			menu->exec(QCursor::pos());
-			break;
-		}
+void LogTabWidget::onTabCloseRequested(int index) {
+	LogTab *tab = dynamic_cast<LogTab*>(widget(index));
+	if (tab == NULL)
+		return;
+	
+	m_hashMap.remove(tab->m_hash);
+	removeTab(index);
+	tab->deleteLater();
+
+	updateHashMap();
+}
+
+void LogTabWidget::onTabBarCustomContextMenuRequested(const QPoint& point) {
+	if (point.isNull())
+		return;
+	
+	const int tab = tabBar()->tabAt(point);
+	if (tab == getChannelTab()) {
+		return;
 	}
+	
+	QSignalMapper mapper;
+	QMenu menu;
+	
+	QAction* action = menu.addAction(tr("Close"));
+	mapper.setMapping(action, tab);
+	connect(action, SIGNAL(triggered()), &mapper, SLOT(map()));
+	connect(&mapper, SIGNAL(mapped(int)), this, SLOT(onTabCloseRequested(int)));
+	connect(&mapper, SIGNAL(mapped(int)), this, SIGNAL(currentChanged(int)));
+	menu.exec(QCursor::pos());
 }
