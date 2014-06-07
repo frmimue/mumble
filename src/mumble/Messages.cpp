@@ -297,6 +297,8 @@ void MainWindow::msgUserState(const MumbleProto::UserState &msg) {
 			pDst->setLocalMute(true);
 		if (Database::isLocalIgnored(pDst->qsHash))
 			pDst->setLocalIgnore(true);
+	} else {
+		pmModel->setHash(pDst, u8(msg.name()));
 	}
 
 	if (bNewUser)
